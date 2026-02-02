@@ -78,6 +78,29 @@ app.get('/api/products', (req, res) => {
   }
 });
 
+// Serve static files from frontend/dist (production build)
+const frontendDistPath = path.join(__dirname, '..', 'frontend', 'dist');
+const frontendPublicPath = path.join(__dirname, '..', 'frontend', 'public');
+
+// Serve images from public/images
+if (fs.existsSync(frontendPublicPath)) {
+  app.use('/images', express.static(path.join(frontendPublicPath, 'images')));
+}
+
+// Serve built frontend files
+if (fs.existsSync(frontendDistPath)) {
+  app.use(express.static(frontendDistPath));
+  
+  // Catch all handler: send back React's index.html file for client-side routing
+  app.get('*', (req, res) => {
+    // Don't serve index.html for API routes
+    if (req.path.startsWith('/api')) {
+      return res.status(404).json({ error: 'API endpoint not found' });
+    }
+    res.sendFile(path.join(frontendDistPath, 'index.html'));
+  });
+}
+
 // Try to load HTTPS certificates
 const certPath = path.join(__dirname, '..', 'certs', 'cert.pem');
 const keyPath = path.join(__dirname, '..', 'certs', 'key.pem');

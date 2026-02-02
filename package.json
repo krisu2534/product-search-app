@@ -1,0 +1,17 @@
+{
+  "name": "product-search-app",
+  "version": "1.0.0",
+  "description": "Product Search & Copy App",
+  "type": "module",
+  "scripts": {
+    "build": "npm run install:all && npm run build:frontend",
+    "install:all": "npm run install:backend && npm run install:frontend",
+    "install:backend": "cd backend && npm install",
+    "install:frontend": "cd frontend && npm install",
+    "build:frontend": "cd frontend && npm run build",
+    "start": "node backend/server.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
