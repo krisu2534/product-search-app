@@ -82,9 +82,16 @@ app.get('/api/products', (req, res) => {
 const frontendDistPath = path.join(__dirname, '..', 'frontend', 'dist');
 const frontendPublicPath = path.join(__dirname, '..', 'frontend', 'public');
 
-// Serve images from public/images
-if (fs.existsSync(frontendPublicPath)) {
-  app.use('/images', express.static(path.join(frontendPublicPath, 'images')));
+// Serve images - try dist/images first (Vite copies public to dist), then fallback to public/images
+const distImagesPath = path.join(frontendDistPath, 'images');
+const publicImagesPath = path.join(frontendPublicPath, 'images');
+
+if (fs.existsSync(distImagesPath)) {
+  // Images are in dist/images (after Vite build)
+  app.use('/images', express.static(distImagesPath));
+} else if (fs.existsSync(publicImagesPath)) {
+  // Fallback to public/images if dist doesn't exist
+  app.use('/images', express.static(publicImagesPath));
 }
 
 // Serve built frontend files
