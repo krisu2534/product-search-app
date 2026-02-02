@@ -1,0 +1,106 @@
+import express from 'express';
+import cors from 'cors';
+import XLSX from 'xlsx';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import https from 'https';
+import fs from 'fs';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const app = express();
+const PORT = process.env.PORT || 3001;
+
+// Enable CORS for frontend
+app.use(cors());
+app.use(express.json());
+
+// Read Excel file and parse products
+function readProducts() {
+  try {
+    const excelPath = path.join(__dirname, '..', 'products.xlsx');
+    const workbook = XLSX.readFile(excelPath);
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+    
+    // Convert to JSON
+    const data = XLSX.utils.sheet_to_json(worksheet);
+    
+    // Helper function to ensure photo filename has extension
+    const ensurePhotoExtension = (filename) => {
+      if (!filename || filename.length === 0) return filename;
+      const trimmed = filename.trim();
+      // Check if filename has an extension (contains a dot followed by letters/numbers)
+      if (!trimmed.match(/\.[a-zA-Z0-9]+$/)) {
+        // No extension found, add .jpg
+        return trimmed + '.jpg';
+      }
+      return trimmed;
+    };
+
+    // Process products: split Photo column if it contains commas
+    const products = data.map(product => {
+      if (product.Photo && typeof product.Photo === 'string') {
+        // Split by comma (and semicolon as alternative separator)
+        // Trim whitespace, remove empty strings, and ensure extensions
+        const photos = product.Photo
+          .split(/[,;]/)
+          .map(photo => ensurePhotoExtension(photo))
+          .filter(photo => photo && photo.length > 0);
+        product.Photo = photos;
+      } else if (product.Photo) {
+        // If it's not a string, convert to array and clean
+        const photoStr = ensurePhotoExtension(String(product.Photo));
+        product.Photo = photoStr.length > 0 ? [photoStr] : [];
+      } else {
+        // If no photo, set to empty array
+        product.Photo = [];
+      }
+      return product;
+    });
+    
+    return products;
+  } catch (error) {
+    console.error('Error reading products.xlsx:', error);
+    return [];
+  }
+}
+
+// API endpoint to get all products
+app.get('/api/products', (req, res) => {
+  try {
+    const products = readProducts();
+    res.json(products);
+  } catch (error) {
+    console.error('Error fetching products:', error);
+    res.status(500).json({ error: 'Failed to fetch products' });
+  }
+});
+
+// Try to load HTTPS certificates
+const certPath = path.join(__dirname, '..', 'certs', 'cert.pem');
+const keyPath = path.join(__dirname, '..', 'certs', 'key.pem');
+
+if (fs.existsSync(certPath) && fs.existsSync(keyPath)) {
+  // HTTPS mode
+  const httpsOptions = {
+    key: fs.readFileSync(keyPath),
+    cert: fs.readFileSync(certPath),
+  };
+  
+  https.createServer(httpsOptions, app).listen(PORT, '0.0.0.0', () => {
+    console.log(`Backend server running on HTTPS://0.0.0.0:${PORT}`);
+    console.log(`Accessible on your network at https://192.168.1.145:${PORT}`);
+    console.log(`Local access: https://localhost:${PORT}`);
+  });
+} else {
+  // HTTP mode (fallback)
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Backend server running on http://0.0.0.0:${PORT}`);
+    console.log(`Accessible on your network at http://192.168.1.145:${PORT}`);
+    console.log(`Local access: http://localhost:${PORT}`);
+    console.log(`\n⚠️  HTTPS certificates not found. Clipboard copy may not work over network.`);
+    console.log(`   To enable HTTPS, run: npm run setup-https`);
+  });
+}
