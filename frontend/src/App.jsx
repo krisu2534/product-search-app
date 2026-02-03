@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import ProductCard from './components/ProductCard'
 
 function App() {
@@ -8,6 +8,10 @@ function App() {
   const [loading, setLoading] = useState(true)
   const [showPdf, setShowPdf] = useState(false)
   const [isMobile, setIsMobile] = useState(false)
+  const [pdfLoading, setPdfLoading] = useState(true)
+  const [pdfError, setPdfError] = useState(false)
+  const pdfSrcRef = useRef(null)
+  const iframeRef = useRef(null)
 
   useEffect(() => {
     fetchProducts()
@@ -32,6 +36,12 @@ function App() {
     // Prevent body scroll when PDF modal is open
     if (showPdf) {
       document.body.style.overflow = 'hidden'
+      // Lazy load PDF: only set src when modal opens
+      if (!pdfSrcRef.current) {
+        pdfSrcRef.current = "/combined handtools catalog/catalog.pdf"
+        setPdfLoading(true)
+        setPdfError(false)
+      }
     } else {
       document.body.style.overflow = 'unset'
     }
@@ -72,6 +82,23 @@ function App() {
       console.error('Error fetching products:', error)
       setLoading(false)
     }
+  }
+
+  const handlePdfLoad = () => {
+    setPdfLoading(false)
+    setPdfError(false)
+  }
+
+  const handlePdfError = () => {
+    setPdfLoading(false)
+    setPdfError(true)
+  }
+
+  const handleClosePdf = () => {
+    setShowPdf(false)
+    // Reset loading state when closing, but keep src cached
+    setPdfLoading(true)
+    setPdfError(false)
   }
 
 
@@ -161,7 +188,7 @@ function App() {
         {showPdf && !isMobile && (
           <div 
             className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75"
-            onClick={() => setShowPdf(false)}
+            onClick={handleClosePdf}
           >
             <div 
               className="bg-white rounded-lg shadow-2xl overflow-hidden w-[95vw] h-[95vh] max-w-7xl flex flex-col"
@@ -170,7 +197,7 @@ function App() {
               <div className="flex items-center justify-between px-4 py-3 bg-gray-100 border-b flex-shrink-0">
                 <h2 className="text-lg font-semibold text-gray-800">Product Catalog</h2>
                 <button
-                  onClick={() => setShowPdf(false)}
+                  onClick={handleClosePdf}
                   className="text-gray-600 hover:text-gray-800 transition-colors p-1"
                   title="Close PDF"
                 >
@@ -189,11 +216,59 @@ function App() {
                   </svg>
                 </button>
               </div>
-              <iframe
-                src="/combined handtools catalog/catalog.pdf"
-                className="w-full flex-1 border-0"
-                title="Product Catalog PDF"
-              />
+              <div className="relative w-full flex-1">
+                {pdfLoading && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-gray-50 z-10">
+                    <div className="text-center">
+                      <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+                      <p className="mt-4 text-gray-600">Loading PDF...</p>
+                    </div>
+                  </div>
+                )}
+                {pdfError && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-gray-50 z-10">
+                    <div className="text-center">
+                      <svg
+                        className="mx-auto h-12 w-12 text-red-500"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                        />
+                      </svg>
+                      <p className="mt-4 text-gray-600">Failed to load PDF</p>
+                      <button
+                        onClick={() => {
+                          setPdfError(false)
+                          setPdfLoading(true)
+                          if (iframeRef.current) {
+                            iframeRef.current.src = pdfSrcRef.current + '?t=' + Date.now()
+                          }
+                        }}
+                        className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                      >
+                        Retry
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {pdfSrcRef.current && (
+                  <iframe
+                    ref={iframeRef}
+                    src={pdfSrcRef.current}
+                    className="w-full h-full border-0"
+                    title="Product Catalog PDF"
+                    onLoad={handlePdfLoad}
+                    onError={handlePdfError}
+                    style={{ display: pdfLoading || pdfError ? 'none' : 'block' }}
+                  />
+                )}
+              </div>
             </div>
           </div>
         )}
