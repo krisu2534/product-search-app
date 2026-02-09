@@ -2,6 +2,7 @@ import { execSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import os from 'os';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -53,17 +54,41 @@ if (!fs.existsSync(certsDir)) {
   console.log('✅ Created certs directory');
 }
 
+// Detect local network IP addresses
+function getLocalIPs() {
+  const interfaces = os.networkInterfaces();
+  const ips = [];
+  
+  for (const name of Object.keys(interfaces)) {
+    for (const iface of interfaces[name]) {
+      // Skip internal (loopback) and non-IPv4 addresses
+      if (iface.family === 'IPv4' && !iface.internal) {
+        ips.push(iface.address);
+      }
+    }
+  }
+  
+  return ips;
+}
+
 // Generate certificates
-console.log('\n🔑 Generating certificates for localhost, 127.0.0.1, and 192.168.1.145...');
+const localIPs = getLocalIPs();
+const certDomains = ['localhost', '127.0.0.1', '::1', ...localIPs];
+
+console.log('\n🔑 Generating certificates for:');
+console.log('   - localhost, 127.0.0.1, ::1');
+localIPs.forEach(ip => console.log(`   - ${ip}`));
+
 try {
-  execSync(
-    `"${mkcertCmd}" -key-file certs/key.pem -cert-file certs/cert.pem localhost 127.0.0.1 192.168.1.145 ::1`,
-    { cwd: projectRoot, stdio: 'inherit' }
-  );
+  const certCommand = `"${mkcertCmd}" -key-file certs/key.pem -cert-file certs/cert.pem ${certDomains.join(' ')}`;
+  execSync(certCommand, { cwd: projectRoot, stdio: 'inherit' });
+  
   console.log('\n✅ Certificates generated successfully!');
   console.log('\n📝 Next steps:');
   console.log('   1. Restart your servers (stop and start again)');
-  console.log('   2. Access via: https://192.168.1.145:3000');
+  if (localIPs.length > 0) {
+    console.log(`   2. Access via: https://${localIPs[0]}:3000`);
+  }
   console.log('   3. Clipboard copy will now work over the network!');
 } catch (error) {
   console.error('\n❌ Failed to generate certificates');
