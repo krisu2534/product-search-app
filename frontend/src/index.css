@@ -10,3 +10,22 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+/* Tap feedback for icons and buttons - works on all devices including iPhone */
+button:active,
+a:active,
+[role="button"]:active,
+[data-haptic]:active {
+  transform: scale(0.97);
+}
+button,
+a,
+[role="button"],
+[data-haptic] {
+  transition: transform 0.1s ease;
+}
+/* Reduce default tap highlight, our scale gives clearer feedback */
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}

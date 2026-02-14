@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
 import PriceProductCard from '../components/PriceProductCard'
 import { copyImagesToClipboardBulk } from '../utils/copyImage'
+import { copyCompositeImageWithMainImage } from '../utils/copyCompositeImage'
 
 const STATUS_KEY = 'สถานะ'
 
-function PricePage() {
+function Price2Page() {
   const [products, setProducts] = useState([])
   const [filteredProducts, setFilteredProducts] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
@@ -14,6 +15,8 @@ function PricePage() {
   const [error, setError] = useState(null)
   const [collectedImages, setCollectedImages] = useState([])
   const [collectedProductInfo, setCollectedProductInfo] = useState([])
+  const [collectedCombinedImages, setCollectedCombinedImages] = useState([])
+  const [collectedCombinedTexts, setCollectedCombinedTexts] = useState([])
   const statusDropdownRef = useRef(null)
 
   useEffect(() => {
@@ -136,6 +139,37 @@ function PricePage() {
     navigator.clipboard?.writeText(fullText).catch(() => {})
   }
 
+  const handleAddToCombined = (imagePath, text, label) => {
+    if (imagePath) {
+      setCollectedCombinedImages((prev) => (prev.length < 4 ? [...prev, { imagePath, label }] : prev))
+    } else {
+      setCollectedCombinedTexts((prev) => [...prev, { text, label }])
+    }
+  }
+
+  const handleRemoveFromCombinedImage = (index) => {
+    setCollectedCombinedImages((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  const handleRemoveFromCombinedText = (index) => {
+    setCollectedCombinedTexts((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  const handleClearCombined = () => {
+    setCollectedCombinedImages([])
+    setCollectedCombinedTexts([])
+  }
+
+  const handleCopyCombined = () => {
+    copyCompositeImageWithMainImage(
+      collectedCombinedImages.map((i) => i.imagePath),
+      collectedCombinedTexts.map((i) => ({ text: i.text })),
+      'combined-product.png'
+    )
+  }
+
+  const hasCombinedItems = collectedCombinedImages.length > 0 || collectedCombinedTexts.length > 0
+
   return (
     <div className="container mx-auto px-2 md:px-4 py-8 max-w-full">
       {/* Search Bar */}
@@ -158,7 +192,6 @@ function PricePage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
           </div>
-          {/* สถานะ (Status) filter icon + dropdown */}
           <div className="relative" ref={statusDropdownRef}>
             <button
               onClick={() => setStatusDropdownOpen((o) => !o)}
@@ -269,15 +302,15 @@ function PricePage() {
         </div>
       )}
 
-      {/* Product Info Collection Box - separate from photo collection */}
+      {/* Product Info Collection Box - fixed height, horizontal scroll */}
       {collectedProductInfo.length > 0 && (
         <div className="max-w-2xl mx-auto mb-8 p-4 bg-white border-2 border-emerald-200 rounded-lg shadow-sm">
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-3 max-h-[200px] overflow-hidden">
             <div className="flex items-center justify-between gap-3 flex-shrink-0">
               <span className="text-sm font-medium text-gray-700">
                 Product Info Collected ({collectedProductInfo.length})
               </span>
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-shrink-0">
                 <button
                   onClick={handleCopyProductInfoBulk}
                   className="px-4 py-2 rounded-lg font-medium bg-emerald-500 hover:bg-emerald-600 text-white transition-colors flex items-center gap-2"
@@ -297,18 +330,92 @@ function PricePage() {
                 </button>
               </div>
             </div>
-            <div className="flex overflow-x-scroll gap-2 pb-2 min-h-0">
+            <div className="flex overflow-x-scroll gap-2 pb-2 min-h-0 flex-1">
               {collectedProductInfo.map((item, index) => (
                 <div
                   key={index}
-                  className="relative flex flex-col gap-1 p-3 rounded border border-gray-200 bg-gray-50 group flex-shrink-0 min-w-[200px] max-w-[200px]"
+                  className="relative flex flex-col gap-1 p-3 rounded border border-gray-200 bg-gray-50 group flex-shrink-0 min-w-[200px] max-w-[200px] h-[100px]"
                 >
-                  <div className="min-w-0">
+                  <div className="min-w-0 overflow-hidden">
                     <div className="font-medium text-gray-800 text-sm truncate">{item.label}</div>
                     <div className="text-xs text-gray-500 line-clamp-2 mt-0.5">{item.text}</div>
                   </div>
                   <button
                     onClick={() => handleRemoveProductInfoFromCollection(index)}
+                    className="absolute top-2 right-2 p-1 rounded hover:bg-red-100 text-red-500 transition-colors"
+                    title="Remove from collection"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Combined Collected - fixed height, horizontal scroll */}
+      {hasCombinedItems && (
+        <div className="max-w-2xl mx-auto mb-8 p-4 bg-white border-2 border-cyan-200 rounded-lg shadow-sm">
+          <div className="flex flex-col gap-3 max-h-[200px] overflow-hidden">
+            <div className="flex items-center justify-between gap-3 flex-shrink-0">
+              <span className="text-sm font-medium text-gray-700">
+                Combined Collected ({collectedCombinedImages.length}/4 photo{collectedCombinedImages.length !== 1 ? 's' : ''} + {collectedCombinedTexts.length} text)
+              </span>
+              <div className="flex gap-2 flex-shrink-0">
+                <button
+                  onClick={handleCopyCombined}
+                  className="px-4 py-2 rounded-lg font-medium bg-cyan-500 hover:bg-cyan-600 text-white transition-colors flex items-center gap-2"
+                  title="Copy as composite image (photo + text)"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                  Copy & Send
+                </button>
+                <button
+                  onClick={handleClearCombined}
+                  className="px-4 py-2 rounded-lg font-medium bg-gray-200 hover:bg-gray-300 text-gray-700 transition-colors"
+                  title="Clear combined collection"
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+            <div className="flex overflow-x-scroll gap-2 pb-2 min-h-0 flex-1">
+              {collectedCombinedImages.map((item, index) => (
+                <div
+                  key={index}
+                  className="relative flex items-center gap-3 p-3 rounded border border-cyan-200 bg-cyan-50 flex-shrink-0 h-[100px]"
+                >
+                  <img
+                    src={item.imagePath}
+                    alt=""
+                    className="w-14 h-14 object-contain bg-white rounded border border-gray-200 flex-shrink-0"
+                  />
+                  <div className="text-sm text-gray-700 flex-1 min-w-0 truncate">{item.label}</div>
+                  <button
+                    onClick={() => handleRemoveFromCombinedImage(index)}
+                    className="p-1.5 rounded hover:bg-red-100 text-red-500 transition-colors flex-shrink-0"
+                    title="Remove photo"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+              {collectedCombinedTexts.map((item, index) => (
+                <div
+                  key={index}
+                  className="relative flex flex-col gap-1 p-3 rounded border border-gray-200 bg-gray-50 flex-shrink-0 min-w-[180px] max-w-[180px] h-[100px]"
+                >
+                  <div className="text-xs font-medium text-gray-700 truncate">{item.label}</div>
+                  <div className="text-xs text-gray-600 line-clamp-2 mt-0.5 overflow-hidden">{item.text}</div>
+                  <button
+                    onClick={() => handleRemoveFromCombinedText(index)}
                     className="absolute top-2 right-2 p-1 rounded hover:bg-red-100 text-red-500 transition-colors"
                     title="Remove from collection"
                   >
@@ -359,6 +466,9 @@ function PricePage() {
               product={product}
               onAddToCollection={handleAddToCollection}
               onAddProductInfoToCollection={handleAddProductInfoToCollection}
+              onAddToCombined={handleAddToCombined}
+              hideCopyAndCollect
+              maxCombinedImagesReached={collectedCombinedImages.length >= 4}
             />
           ))}
         </div>
@@ -367,4 +477,4 @@ function PricePage() {
   )
 }
 
-export default PricePage
+export default Price2Page

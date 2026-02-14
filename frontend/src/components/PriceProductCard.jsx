@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { copyImageToClipboard, copyImagesToClipboardBulk } from '../utils/copyImage'
 import { getProductPhotos, getImagePath } from '../utils/photoHelpers'
-
 const PRICE_KEYS = [
   'Price step 1', 'Price step 2', 'Price step 3', 'Price step 4', 'Price step 5',
   'Price 1', 'Price 2', 'Price 3', 'Price 4', 'Price 5'
@@ -10,9 +9,27 @@ const NOTE_KEY = 'Note'
 const STATUS_KEY = 'สถานะ'
 const STOCK_KEY = 'สต็อคจำนวน'
 const PRODUCT_DETAIL_KEYS = ['Product detail', 'Product Detail', 'ProductDetail']
+const PRODUCT_NAME_KEYS_CARD = ['Name', 'name', 'ชื่อ', 'Product Name', 'Product name']
 
-function PriceProductCard({ product, onAddToCollection }) {
-  const [selectedImageIndex, setSelectedImageIndex] = useState(0)
+function buildFullProductText(product) {
+  const lines = []
+  const productName = PRODUCT_NAME_KEYS_CARD.map((k) => product[k]).find((v) => v != null && v !== '')
+  const productDetailKey = PRODUCT_DETAIL_KEYS.find((k) => product[k] != null && product[k] !== '')
+  const productDetailValue = productDetailKey ? product[productDetailKey] : null
+  if (productName) lines.push(productName)
+  if (productDetailValue) lines.push(productDetailValue)
+  PRICE_KEYS.forEach((key) => {
+    const v = product[key]
+    if (v != null && v !== '') {
+      lines.push(String(v).replace(/\s*\([A-Z]\)\s*$/, '').trim())
+    }
+  })
+  if (product[NOTE_KEY]) lines.push(String(product[NOTE_KEY]))
+  return lines.join('\n')
+}
+
+function PriceProductCard({ product, onAddToCollection, onAddProductInfoToCollection, onAddToCombined, hideCopyAndCollect, maxCombinedImagesReached, initialSelectedImageIndex = 0 }) {
+  const [selectedImageIndex, setSelectedImageIndex] = useState(initialSelectedImageIndex)
   const [imageLoadError, setImageLoadError] = useState(false)
   const [thumbnailErrors, setThumbnailErrors] = useState({})
 
@@ -113,35 +130,37 @@ function PriceProductCard({ product, onAddToCollection }) {
                   className="w-full h-full object-contain"
                   onError={handleMainImageError}
                 />
-                {/* Copy Image Button */}
-                <button
-                  onClick={handleCopyImage}
-                  disabled={imageLoadError}
-                  className={`absolute top-2 right-2 px-4 py-2 rounded-lg shadow-lg font-medium transition-colors flex items-center gap-2 ${
-                    imageLoadError
-                      ? 'bg-gray-400 cursor-not-allowed text-white'
-                      : 'bg-blue-500 hover:bg-blue-600 text-white'
-                  }`}
-                  title={imageLoadError ? 'Image cannot be loaded' : 'Copy image to clipboard'}
-                >
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
+                {/* Copy Image Button - hidden when hideCopyAndCollect */}
+                {!hideCopyAndCollect && (
+                  <button
+                    onClick={handleCopyImage}
+                    disabled={imageLoadError}
+                    className={`absolute top-2 right-2 px-4 py-2 rounded-lg shadow-lg font-medium transition-colors flex items-center gap-2 ${
+                      imageLoadError
+                        ? 'bg-gray-400 cursor-not-allowed text-white'
+                        : 'bg-blue-500 hover:bg-blue-600 text-white'
+                    }`}
+                    title={imageLoadError ? 'Image cannot be loaded' : 'Copy image to clipboard'}
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                    />
-                  </svg>
-                  Copy Image
-                </button>
-                {/* Add to collection & Copy all images */}
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                      />
+                    </svg>
+                    Copy Image
+                  </button>
+                )}
+                {/* Add to collection & Add to combined & Copy all images */}
                 <div className="absolute bottom-2 right-2 flex flex-col gap-2 items-end">
-                  {onAddToCollection && !imageLoadError && currentImage && (
+                  {!hideCopyAndCollect && onAddToCollection && !imageLoadError && currentImage && (
                     <button
                       onClick={() => onAddToCollection(imagePath, currentImage || 'product-image.png')}
                       className="p-2 rounded-lg shadow-lg bg-amber-500 hover:bg-amber-600 text-white transition-colors"
@@ -162,7 +181,28 @@ function PriceProductCard({ product, onAddToCollection }) {
                       </svg>
                     </button>
                   )}
-                  {photos.length > 1 && (
+                  {onAddToCombined && !imageLoadError && currentImage && !maxCombinedImagesReached && (
+                    <button
+                      onClick={() => onAddToCombined(imagePath, '', productName || 'Product')}
+                      className="p-2 rounded-lg shadow-lg bg-cyan-500 hover:bg-cyan-600 text-white transition-colors"
+                      title="Add main photo to combined (max 4)"
+                    >
+                      <svg
+                        className="w-5 h-5"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+                        />
+                      </svg>
+                    </button>
+                  )}
+                  {!hideCopyAndCollect && photos.length > 1 && (
                     <button
                       onClick={handleCopyBulk}
                       className="p-2 rounded-lg shadow-lg bg-indigo-500 hover:bg-indigo-600 text-white transition-colors"
@@ -255,6 +295,25 @@ function PriceProductCard({ product, onAddToCollection }) {
           })}
             </div>
           )}
+        {/* สถานะ + สต็อคจำนวน - desktop: left column below thumbnails */}
+        {((status != null && status !== '') || (stockQty != null && stockQty !== '')) && (
+          <div className="hidden md:flex flex-col gap-2 p-3 bg-gray-50 border-t border-gray-200">
+            {status != null && status !== '' && (
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-100 text-amber-800 text-sm font-medium" title="สถานะ">
+                <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>{String(status)}</span>
+              </div>
+            )}
+            {stockQty != null && stockQty !== '' && (
+              <div className="text-sm text-gray-600">
+                <span className="font-semibold text-gray-700">สต็อคจำนวน: </span>
+                {String(stockQty)}
+              </div>
+            )}
+          </div>
+        )}
         </div>
 
         {/* Product Info - right side on desktop */}
@@ -279,46 +338,125 @@ function PriceProductCard({ product, onAddToCollection }) {
                 </div>
               )}
             </div>
-            {/* Desktop: absolute top right */}
-            <div className="hidden md:flex absolute top-3 right-3 flex-col gap-2 items-end">
-              {status != null && status !== '' && (
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-100 text-amber-800 text-sm font-medium" title="สถานะ">
-                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <span>{String(status)}</span>
-                </div>
-              )}
-              {stockQty != null && stockQty !== '' && (
-                <div className="text-sm text-gray-600">
-                  <span className="font-semibold text-gray-700">สต็อคจำนวน: </span>
-                  {String(stockQty)}
-                </div>
-              )}
-            </div>
           </>
         ) : null}
-        <div className={(status != null && status !== '') || (stockQty != null && stockQty !== '') ? 'md:pr-36' : ''}>
-        {/* 1. Product Name */}
+        <div>
+        {/* 1. Product Name + copy + collect */}
         {productName && (
-          <div className="mb-2">
-            <div className="font-semibold text-gray-800 text-lg">{productName}</div>
+          <div className="mb-2 flex items-center gap-2">
+            <div className="font-semibold text-gray-800 text-lg flex-1 min-w-0">{productName}</div>
+            <div className="flex items-center gap-1 flex-shrink-0">
+              {!hideCopyAndCollect && (
+                <button
+                  onClick={() => navigator.clipboard?.writeText(productName).catch(() => {})}
+                  className="p-1.5 rounded hover:bg-gray-200 text-gray-500 transition-colors"
+                  title="Copy"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                </button>
+              )}
+              {!hideCopyAndCollect && onAddProductInfoToCollection && (
+                <button
+                  onClick={() => onAddProductInfoToCollection(productName, productName)}
+                  className="p-1.5 rounded hover:bg-emerald-100 text-emerald-600 transition-colors"
+                  title="Add to collection"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                </button>
+              )}
+              {onAddToCombined && (
+                <button
+                  onClick={() => onAddToCombined(null, productName, productName)}
+                  className="p-1.5 rounded hover:bg-cyan-100 text-cyan-600 transition-colors"
+                  title="Add to combined (text only)"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                  </svg>
+                </button>
+              )}
+            </div>
           </div>
         )}
-        {/* 2. ID */}
+        {/* 2. ID + copy + add to combined */}
         {(product.ID || product.id) != null && (product.ID || product.id) !== '' && (
-          <div className="mb-2">
+          <div className="mb-2 flex items-center gap-2">
             <span className="font-semibold text-gray-700">ID: </span>
-            <span className="text-gray-600">{String(product.ID || product.id)}</span>
+            <span className="text-gray-600 flex-1">{String(product.ID || product.id)}</span>
+            <div className="flex items-center gap-1 flex-shrink-0">
+              {!hideCopyAndCollect && (
+                <button
+                  onClick={() => navigator.clipboard?.writeText(String(product.ID || product.id)).catch(() => {})}
+                  className="p-1.5 rounded hover:bg-gray-200 text-gray-500 transition-colors"
+                  title="Copy"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                </button>
+              )}
+              {onAddToCombined && (
+                <button
+                  onClick={() => onAddToCombined(null, String(product.ID || product.id), productName ? `${productName} - ID` : 'ID')}
+                  className="p-1.5 rounded hover:bg-cyan-100 text-cyan-600 transition-colors"
+                  title="Add to combined (text only)"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                  </svg>
+                </button>
+              )}
+            </div>
           </div>
         )}
-        {/* 3. Product detail */}
+        {/* 3. Product detail + copy + collect */}
         {productDetailKey && productDetailValue && (
-          <div className="mb-2">
-            <span className="font-semibold text-gray-700 capitalize">
-              {productDetailKey.replace(/_/g, ' ')}:
-            </span>{' '}
-            <span className="text-gray-600">{String(productDetailValue)}</span>
+          <div className="mb-2 flex items-center gap-2">
+            <div className="flex-1 min-w-0">
+              <span className="font-semibold text-gray-700 capitalize">
+                {productDetailKey.replace(/_/g, ' ')}:
+              </span>{' '}
+              <span className="text-gray-600">{String(productDetailValue)}</span>
+            </div>
+            <div className="flex items-center gap-1 flex-shrink-0">
+              {!hideCopyAndCollect && (
+                <button
+                  onClick={() => navigator.clipboard?.writeText(String(productDetailValue)).catch(() => {})}
+                  className="p-1.5 rounded hover:bg-gray-200 text-gray-500 transition-colors"
+                  title="Copy"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                </button>
+              )}
+              {!hideCopyAndCollect && onAddProductInfoToCollection && (
+                <button
+                  onClick={() => onAddProductInfoToCollection(String(productDetailValue), productName ? `${productName} - Detail` : 'Detail')}
+                  className="p-1.5 rounded hover:bg-emerald-100 text-emerald-600 transition-colors"
+                  title="Add to collection"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                </button>
+              )}
+              {onAddToCombined && (
+                <button
+                  onClick={() => onAddToCombined(null, String(productDetailValue), productName ? `${productName} - Detail` : 'Detail')}
+                  className="p-1.5 rounded hover:bg-cyan-100 text-cyan-600 transition-colors"
+                  title="Add to combined (text only)"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                  </svg>
+                </button>
+              )}
+            </div>
           </div>
         )}
         {/* 5. Other product details */}
@@ -337,7 +475,7 @@ function PriceProductCard({ product, onAddToCollection }) {
           )
         })}
 
-        {/* Price steps 1-5 */}
+        {/* Price steps 1-5 - each with copy + collect */}
         {hasPriceSteps && (() => {
           const renderedSteps = priceSteps.filter((p) => p.value != null && p.value !== '')
           const lastIndex = renderedSteps.length - 1
@@ -348,22 +486,50 @@ function PriceProductCard({ product, onAddToCollection }) {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                 {renderedSteps.map(({ key, value }, index) => {
                   const stepLabel = key.replace('Price step ', 'Step ')
+                  const textWithoutABC = String(value).replace(/\s*\([A-Z]\)\s*$/, '').trim()
+                  const stepText = `${stepLabel}: ${textWithoutABC}`
                   return (
                     <div
                       key={key}
-                      className={`flex items-center gap-2 py-2.5 px-3 rounded-lg bg-gray-50 h-[2.75rem] ${index === lastIndex && makeLastFullWidth ? 'sm:col-span-2' : ''}`}
+                      className={`flex items-center gap-2 py-2.5 px-3 rounded-lg bg-gray-50 min-h-[2.75rem] ${index === lastIndex && makeLastFullWidth ? 'sm:col-span-2' : ''}`}
                     >
                       <span className="text-gray-600 flex-shrink-0">{stepLabel}:</span>
                       <span className="font-medium text-gray-800 flex-1 min-w-0">{String(value)}</span>
-                      <button
-                        onClick={() => copyPriceStepText(stepLabel, value)}
-                        className="flex-shrink-0 p-1.5 rounded hover:bg-gray-200 text-gray-500 transition-colors"
-                        title="Copy text (excludes A/B/C)"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                        </svg>
-                      </button>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        {!hideCopyAndCollect && (
+                          <button
+                            onClick={() => copyPriceStepText(stepLabel, value)}
+                            className="p-1.5 rounded hover:bg-gray-200 text-gray-500 transition-colors"
+                            title="Copy text (excludes A/B/C)"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                            </svg>
+                          </button>
+                        )}
+                        {!hideCopyAndCollect && onAddProductInfoToCollection && (
+                          <button
+                            onClick={() => onAddProductInfoToCollection(textWithoutABC, productName ? `${productName} - ${stepLabel}` : stepLabel)}
+                            className="p-1.5 rounded hover:bg-emerald-100 text-emerald-600 transition-colors"
+                            title="Add to collection"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                            </svg>
+                          </button>
+                        )}
+                        {onAddToCombined && (
+                          <button
+                            onClick={() => onAddToCombined(null, textWithoutABC, productName ? `${productName} - ${stepLabel}` : stepLabel)}
+                            className="p-1.5 rounded hover:bg-cyan-100 text-cyan-600 transition-colors"
+                            title="Add to combined (text only)"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
                     </div>
                   )
                 })}
@@ -372,13 +538,48 @@ function PriceProductCard({ product, onAddToCollection }) {
           )
         })()}
 
-        {/* Note */}
+        {/* Note + copy + collect + add to combined */}
         {note != null && note !== '' && (
-          <div className="mt-2 pt-2 border-t border-gray-200">
-            <p className="text-gray-600 text-sm">
+          <div className="mt-2 pt-2 border-t border-gray-200 flex items-start gap-2">
+            <p className="text-gray-600 text-sm flex-1">
               <span className="font-semibold text-gray-700">Note: </span>
               {String(note)}
             </p>
+            <div className="flex items-center gap-1 flex-shrink-0">
+              {!hideCopyAndCollect && (
+                <button
+                  onClick={() => navigator.clipboard?.writeText(String(note)).catch(() => {})}
+                  className="p-1.5 rounded hover:bg-gray-200 text-gray-500 transition-colors"
+                  title="Copy"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                </button>
+              )}
+              {onAddToCombined && (
+                <button
+                  onClick={() => onAddToCombined(null, String(note), productName ? `${productName} - Note` : 'Note')}
+                  className="p-1.5 rounded hover:bg-cyan-100 text-cyan-600 transition-colors"
+                  title="Add to combined (text only)"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                  </svg>
+                </button>
+              )}
+              {!hideCopyAndCollect && onAddProductInfoToCollection && (
+                <button
+                  onClick={() => onAddProductInfoToCollection(String(note), productName ? `${productName} - Note` : 'Note')}
+                  className="p-1.5 rounded hover:bg-emerald-100 text-emerald-600 transition-colors"
+                  title="Add to collection"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                </button>
+              )}
+            </div>
           </div>
         )}
         </div>
