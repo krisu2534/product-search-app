@@ -69,6 +69,44 @@ function readProducts() {
   }
 }
 
+// Read Sheet 2 (prices, notes) from Excel
+function readSheet2() {
+  try {
+    const excelPath = path.join(__dirname, '..', 'products.xlsx');
+    const workbook = XLSX.readFile(excelPath);
+    if (!workbook.SheetNames || workbook.SheetNames.length < 2) {
+      return [];
+    }
+    const sheet2Name = workbook.SheetNames[1];
+    const worksheet = workbook.Sheets[sheet2Name];
+    return XLSX.utils.sheet_to_json(worksheet);
+  } catch (error) {
+    console.error('Error reading Sheet 2:', error);
+    return [];
+  }
+}
+
+// API endpoint: products merged with Sheet 2 (prices, notes) by ID
+app.get('/api/products-with-prices', (req, res) => {
+  try {
+    const products = readProducts();
+    const prices = readSheet2();
+    const priceMap = Object.fromEntries(
+      prices.map((p) => [String(p.ID ?? p.id ?? '').trim(), p])
+    );
+    const merged = products.map((prod) => {
+      const id = String(prod.ID ?? prod.id ?? '').trim();
+      const priceData = priceMap[id] || {};
+      const { ID: _id, id: _id2, ...rest } = priceData;
+      return { ...prod, ...rest };
+    });
+    res.json(merged);
+  } catch (error) {
+    console.error('Error fetching products with prices:', error);
+    res.status(500).json({ error: 'Failed to fetch products with prices' });
+  }
+});
+
 // API endpoint to get all products
 app.get('/api/products', (req, res) => {
   try {

@@ -1,9 +1,9 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
+import { BrowserRouter } from 'react-router-dom'
 import App from './App.jsx'
 import './index.css'
 
-// Check if root element exists
 const rootElement = document.getElementById('root')
 if (!rootElement) {
   console.error('Root element not found! Make sure index.html has <div id="root"></div>')
@@ -13,7 +13,9 @@ if (!rootElement) {
     const root = ReactDOM.createRoot(rootElement)
     root.render(
       <React.StrictMode>
-        <App />
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
       </React.StrictMode>,
     )
     console.log('React app initialized successfully')
