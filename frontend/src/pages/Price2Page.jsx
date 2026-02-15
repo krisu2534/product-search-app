@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
 import PriceProductCard from '../components/PriceProductCard'
-import { copyImagesToClipboardBulk } from '../utils/copyImage'
 import { copyCompositeImageWithMainImage } from '../utils/copyCompositeImage'
 
 const STATUS_KEY = 'สถานะ'
@@ -13,8 +12,6 @@ function Price2Page() {
   const [statusDropdownOpen, setStatusDropdownOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [collectedImages, setCollectedImages] = useState([])
-  const [collectedProductInfo, setCollectedProductInfo] = useState([])
   const [collectedCombinedImages, setCollectedCombinedImages] = useState([])
   const [collectedCombinedTexts, setCollectedCombinedTexts] = useState([])
   const statusDropdownRef = useRef(null)
@@ -101,42 +98,6 @@ function Price2Page() {
       setError(errorMessage)
       setLoading(false)
     }
-  }
-
-  const handleAddToCollection = (imagePath, filename) => {
-    setCollectedImages((prev) => [...prev, { imagePath, filename }])
-  }
-
-  const handleRemoveFromCollection = (index) => {
-    setCollectedImages((prev) => prev.filter((_, i) => i !== index))
-  }
-
-  const handleClearCollection = () => {
-    setCollectedImages([])
-  }
-
-  const handleCopyCollectedBulk = () => {
-    copyImagesToClipboardBulk(
-      collectedImages.map((i) => i.imagePath),
-      'collected-images.png'
-    )
-  }
-
-  const handleAddProductInfoToCollection = (text, label) => {
-    setCollectedProductInfo((prev) => [...prev, { text, label }])
-  }
-
-  const handleRemoveProductInfoFromCollection = (index) => {
-    setCollectedProductInfo((prev) => prev.filter((_, i) => i !== index))
-  }
-
-  const handleClearProductInfoCollection = () => {
-    setCollectedProductInfo([])
-  }
-
-  const handleCopyProductInfoBulk = () => {
-    const fullText = collectedProductInfo.map((item) => item.text).join('\n\n')
-    navigator.clipboard?.writeText(fullText).catch(() => {})
   }
 
   const handleAddToCombined = (imagePath, text, label) => {
@@ -249,113 +210,6 @@ function Price2Page() {
         </p>
       </div>
 
-      {/* Collection Box */}
-      {collectedImages.length > 0 && (
-        <div className="max-w-2xl mx-auto mb-8 p-4 bg-white border-2 border-gray-200 rounded-lg shadow-sm">
-          <div className="flex items-center gap-3 flex-wrap">
-            <span className="text-sm font-medium text-gray-700">
-              Collected ({collectedImages.length})
-            </span>
-            <div className="flex flex-1 overflow-x-scroll gap-2 min-w-0">
-              {collectedImages.map((item, index) => (
-                <div
-                  key={index}
-                  className="relative flex-shrink-0 w-12 h-12 md:w-16 md:h-16 rounded border-2 border-gray-200 overflow-hidden group"
-                >
-                  <img
-                    src={item.imagePath}
-                    alt={item.filename}
-                    className="w-full h-full object-cover"
-                  />
-                  <button
-                    onClick={() => handleRemoveFromCollection(index)}
-                    className="absolute top-0 right-0 p-1 bg-red-500 text-white rounded-bl opacity-0 group-hover:opacity-100 transition-opacity"
-                    title="Remove from collection"
-                  >
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-              ))}
-            </div>
-            <div className="flex gap-2 flex-shrink-0">
-              <button
-                onClick={handleCopyCollectedBulk}
-                className="px-4 py-2 rounded-lg font-medium bg-indigo-500 hover:bg-indigo-600 text-white transition-colors flex items-center gap-2"
-                title="Copy all collected images as one"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                </svg>
-                Copy as bulk
-              </button>
-              <button
-                onClick={handleClearCollection}
-                className="px-4 py-2 rounded-lg font-medium bg-gray-200 hover:bg-gray-300 text-gray-700 transition-colors"
-                title="Clear collection"
-              >
-                Clear
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Product Info Collection Box - fixed height, horizontal scroll */}
-      {collectedProductInfo.length > 0 && (
-        <div className="max-w-2xl mx-auto mb-8 p-4 bg-white border-2 border-emerald-200 rounded-lg shadow-sm">
-          <div className="flex flex-col gap-3 max-h-[200px] overflow-hidden">
-            <div className="flex items-center justify-between gap-3 flex-shrink-0">
-              <span className="text-sm font-medium text-gray-700">
-                Product Info Collected ({collectedProductInfo.length})
-              </span>
-              <div className="flex gap-2 flex-shrink-0">
-                <button
-                  onClick={handleCopyProductInfoBulk}
-                  className="px-4 py-2 rounded-lg font-medium bg-emerald-500 hover:bg-emerald-600 text-white transition-colors flex items-center gap-2"
-                  title="Copy all collected product info as text"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                  </svg>
-                  Copy & Send
-                </button>
-                <button
-                  onClick={handleClearProductInfoCollection}
-                  className="px-4 py-2 rounded-lg font-medium bg-gray-200 hover:bg-gray-300 text-gray-700 transition-colors"
-                  title="Clear product info collection"
-                >
-                  Clear
-                </button>
-              </div>
-            </div>
-            <div className="flex overflow-x-scroll gap-2 pb-2 min-h-0 flex-1">
-              {collectedProductInfo.map((item, index) => (
-                <div
-                  key={index}
-                  className="relative flex flex-col gap-1 p-3 rounded border border-gray-200 bg-gray-50 group flex-shrink-0 min-w-[200px] max-w-[200px] h-[100px]"
-                >
-                  <div className="min-w-0 overflow-hidden">
-                    <div className="font-medium text-gray-800 text-sm truncate">{item.label}</div>
-                    <div className="text-xs text-gray-500 line-clamp-2 mt-0.5">{item.text}</div>
-                  </div>
-                  <button
-                    onClick={() => handleRemoveProductInfoFromCollection(index)}
-                    className="absolute top-2 right-2 p-1 rounded hover:bg-red-100 text-red-500 transition-colors"
-                    title="Remove from collection"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Combined Collected - fixed height, horizontal scroll */}
       {hasCombinedItems && (
         <div className="max-w-2xl mx-auto mb-8 p-4 bg-white border-2 border-cyan-200 rounded-lg shadow-sm">
@@ -460,14 +314,11 @@ function Price2Page() {
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 md:gap-6 w-full max-w-full md:max-w-4xl md:mx-auto">
-          {filteredProducts.map((product, index) => (
+          {filteredProducts.slice(0, 10).map((product, index) => (
             <PriceProductCard
               key={product.ID ?? product.id ?? index}
               product={product}
-              onAddToCollection={handleAddToCollection}
-              onAddProductInfoToCollection={handleAddProductInfoToCollection}
               onAddToCombined={handleAddToCombined}
-              hideCopyAndCollect
               maxCombinedImagesReached={collectedCombinedImages.length >= 4}
             />
           ))}

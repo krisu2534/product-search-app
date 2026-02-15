@@ -353,7 +353,7 @@ function PricePage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 md:gap-6 w-full max-w-full md:max-w-4xl md:mx-auto">
-          {filteredProducts.map((product, index) => (
+          {filteredProducts.slice(0, 10).map((product, index) => (
             <PriceProductCard
               key={product.ID ?? product.id ?? index}
               product={product}

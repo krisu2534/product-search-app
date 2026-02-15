@@ -252,6 +252,12 @@ export async function copyCompositeImageWithMainImage(mainImagePaths, textItems,
     reader.readAsDataURL(blob)
   })
 
+  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent)
+  if (isIOS) {
+    showIOSCopyOverlay(dataUrl)
+    return
+  }
+
   const link = document.createElement('a')
   link.href = dataUrl
   link.download = fallbackFilename
@@ -259,6 +265,34 @@ export async function copyCompositeImageWithMainImage(mainImagePaths, textItems,
   link.click()
   document.body.removeChild(link)
   alert('Image saved. Paste from your downloads if clipboard failed.')
+}
+
+function showIOSCopyOverlay(dataUrl) {
+  const overlay = document.createElement('div')
+  overlay.style.cssText = `
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.9); z-index: 9999;
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+    flex-direction: column;
+  `
+  const imageContainer = document.createElement('div')
+  imageContainer.style.cssText = 'max-width: 100%; max-height: 100%; position: relative;'
+  const displayImg = document.createElement('img')
+  displayImg.src = dataUrl
+  displayImg.style.cssText = 'max-width: 100%; max-height: 100%; object-fit: contain; -webkit-user-select: all; user-select: all;'
+  const instruction = document.createElement('div')
+  instruction.style.cssText = 'color: white; text-align: center; margin-top: 20px; font-size: 16px; padding: 10px;'
+  instruction.textContent = 'Long-press the image to copy, then paste into LINE'
+  const closeBtn = document.createElement('button')
+  closeBtn.textContent = '✕ Close'
+  closeBtn.style.cssText = 'position: absolute; top: 10px; right: 10px; background: rgba(255,255,255,0.2); color: white; border: none; padding: 10px 15px; border-radius: 5px; font-size: 16px; cursor: pointer;'
+  closeBtn.onclick = () => document.body.removeChild(overlay)
+  imageContainer.appendChild(displayImg)
+  imageContainer.appendChild(closeBtn)
+  overlay.appendChild(imageContainer)
+  overlay.appendChild(instruction)
+  document.body.appendChild(overlay)
+  setTimeout(() => { if (document.body.contains(overlay)) document.body.removeChild(overlay) }, 10000)
 }
 
 export async function copyCompositeImageToClipboard(items, fallbackFilename = 'combined-product.png') {
@@ -340,6 +374,12 @@ export async function copyCompositeImageToClipboard(items, fallbackFilename = 'c
     reader.onloadend = () => resolve(reader.result)
     reader.readAsDataURL(blob)
   })
+
+  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent)
+  if (isIOS) {
+    showIOSCopyOverlay(dataUrl)
+    return
+  }
 
   const link = document.createElement('a')
   link.href = dataUrl
